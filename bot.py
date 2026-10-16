@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ApkPatcher Telegram Bot - full wrapper around ApkPatcherX (ApkPatcher CLI)."""
+"""CRACKED GR APK Patcher Bot - full wrapper around ApkPatcherX (ApkPatcher CLI)."""
 
 import asyncio
 import html
@@ -98,16 +98,8 @@ TOGGLES = [
 BOOL_FLAG_ORDER = ["a", "e", "u", "f", "p", "x", "r", "rmads", "rmss", "rmusb", "pkg", "A", "A2", "s", "t", "P"]
 
 TOO_BIG_TEXT = (
-    "⚠️ ফাইলটা Telegram Bot API এর ডাউনলোড লিমিট (20MB) এর চেয়ে বড়।\n"
-    "Telegram নিজেই এই লিমিট দেয় — বট দিয়ে ২০MB+ সাইজ পাঠানো/নেওয়া যায় না।\n\n"
-    "✅ <b>লিমিট ছাড়া ৩টি উপায়:</b>\n\n"
-    "1️⃣ 🌐 <b>Local Web Upload</b> (সবচেয়ে সহজ):\n"
-    "   এই চ্যাটে <code>/web</code> দিন → লিংক আসবে → ফোনের ব্রাউজারে খুলে যত বড় ফাইল হোক আপলোড করুন।\n\n"
-    "2️⃣ 📂 <b>Folder পদ্ধতি</b>:\n"
-    "   ফাইল ম্যানেজার দিয়ে APK টা এখানে কপি করুন —\n"
-    "   <code>/storage/emulated/0/Download/ApkPatcherBot/input/</code>\n"
-    "   তারপর <code>/scan</code> দিন।\n\n"
-    "3️⃣ 🔗 <b>Link পদ্ধতি</b>: <code>/url &lt;direct-link&gt;</code> — বট নিজে নামিয়ে নেবে।"
+    "⚠️ ফাইলটা Telegram Bot API এর ডাউনলোড লিমিট (20MB) এর চেয়ে বড়।\n\n"
+    "✅ বিকল্প: <code>/url &lt;direct-link&gt;</code> — লিংক দিলে বট নিজে ফাইল নামিয়ে নেবে।"
 )
 
 if LOCAL_API:
@@ -121,60 +113,51 @@ LAST_DL_ERROR = None
 LIMIT_NOTE = (
     "♾️ <b>Local Bot API server চালু আছে — Telegram-এ সরাসরি ~2GB পর্যন্ত ফাইল পাঠাতে পারবেন!</b>\n\n"
     if LOCAL_API
-    else "⚠️ সরাসরি পাঠানোর লিমিট: ইনপুট ২০MB / আউটপুট ৫০MB (Telegram এর নিয়ম)। বড় ফাইলের জন্য /web, /scan, /url।\n\n"
+    else "⚠️ সরাসরি পাঠানোর লিমিট: ইনপুট ২০MB / আউটপুট ৫০MB (Telegram এর নিয়ম)। বড় ফাইলের জন্য <code>/url</code> ব্যবহার করুন।\n\n"
 )
 
 HELP_TEXT = (
-    "🛠️ <b>ApkPatcher Telegram Bot</b>\n"
-    "ApkPatcherX CLI এর সম্পূর্ণ ফিচার বটে।\n\n"
+    "🛠️ <b>CRACKED GR — APK Patcher</b>\n"
+    "👑 <b>DEVELOPER: ZX ROCK 007</b>\n"
+    "━━━━━━━━━━━━━━━━━━━━━\n"
+    "সম্পূর্ণ ApkPatcherX ইঞ্জিনের প্রফেশনাল Telegram বট — decompile, smali patch, "
+    "SSL/VPN bypass থেকে re-patch ও signing পর্যন্ত সব কাজ এক জায়গায়।\n\n"
+    "📤 <b>ব্যবহারবিধি:</b>\n"
+    "1️⃣ যেকোনো <b>.apk / .apks / .apkm / .xapk</b> সরাসরি পাঠান\n"
     + (
-        "📤 <b>ব্যবহারবিধি:</b> যেকোনো <b>.apk / .apks / .apkm / .xapk</b> সরাসরি পাঠান (২GB পর্যন্ত!)\n"
+        "♾️ <b>Local Bot API server চালু আছে — সরাসরি ~2GB পর্যন্ত ফাইল সাপোর্টেড!</b>\n"
         if LOCAL_API
-        else "📤 <b>ব্যবহারবিধি (ছোট ফাইল ≤20MB):</b>\n"
+        else ""
     )
-    + "1️⃣ ফাইল পাঠান\n"
-    "2️⃣ আসা মেনু থেকে দরকারি patch গুলো toggle করুন\n"
+    + "2️⃣ আসা মেনু থেকে দরকারি patch গুলো toggle করুন\n"
     "3️⃣ <b>▶️ START PATCH</b> চাপুন\n"
-    "4️⃣ Live লগ আর patched APK ফেরত পাবেন\n\n"
-    + (
-        "♾️ <b>বড় ফাইল (কোনো MB লিমিট নেই):</b>\n"
-        "🌐 <code>/web</code> — ফোনের ব্রাউজারে আপলোড লিংক (GB সাইজও চলবে)\n"
-        "📂 <code>/scan</code> — <code>/sdcard/Download/ApkPatcherBot/input/</code> এ ফাইল কপি করে scan\n"
-        "🔗 <code>/url &lt;link&gt;</code> — ডাইরেক্ট লিংক থেকে নিজে ডাউনলোড\n"
-        "📤 patched APK সবসময় <code>/sdcard/Download/ApkPatcherBot/output/</code> এ জমা হয়।\n\n"
-        if WEB_ENABLED
-        else "♾️ <b>বড় ফাইল:</b> সরাসরি Telegram-এ ২GB পর্যন্ত পাঠান (Local Bot API server চালু আছে)।\n"
-        "🔗 <code>/url &lt;link&gt;</code> — ডাইরেক্ট লিংক থেকেও APK নামাতে পারবেন।\n"
-        "📤 patched APK সরাসরি Telegram-এ ফেরত আসে।\n\n"
-    )
-    + "⚠️ ডিফল্টে সবসময় <b>VPN &amp; SSL Bypass</b> apply হয় (আলাদা প্যাচ না দিলে)।\n\n"
+    "4️⃣ Live লগ দেখুন — patched APK ফেরত পাবেন\n\n"
+    "🔗 <code>/url &lt;link&gt;</code> — ডাইরেক্ট লিংক থেকেও APK নামিয়ে patch করা যায়।\n"
+    "📤 patched APK সরাসরি Telegram-এ ফেরত আসে।\n\n"
+    "⚠️ ডিফল্টে সবসময় <b>VPN &amp; SSL Bypass</b> apply হয় (আলাদা প্যাচ না দিলে)।\n\n"
     "⚡ <b>Special flags:</b>\n"
     "🔑 <b>Android ID</b> — 16 digit ID হুক (One Device Login Bypass)\n"
-    "⏭️ <b>Skip Patch</b> — e.g. <code>getAcceptedIssuers</code>\n"
+    "⏭️ <b>Skip Patch</b> — নির্দিষ্ট smali প্যাচ বাদ (e.g. <code>getAcceptedIssuers</code>)\n"
     "📜 <b>Certificates</b> — আপনার MITM cert (.pem/.crt) সিলেক্ট করতে extra ফাইল পাঠান\n"
     "🧩 <b>Modules</b> — Pine Hook এর জন্য Xposed/LSPosed module .apk পাঠান\n"
     "🔀 <b>Merge Only</b> — .apks/.xapk শুধু merge করে APK বানায়\n\n"
     "📌 <b>Commands:</b>\n"
-    + (
-        "/web — লিমিট-ফ্রি আপলোড লিংক\n"
-        "/scan — input ফোল্ডার থেকে ফাইল বাছুন\n"
-        if WEB_ENABLED
-        else ""
-    )
-    + "/url — লিংক থেকে APK নামান\n"
+    "/url — লিংক থেকে APK নামান\n"
     "/flags — সব flag এর লিস্ট ও ব্যাখ্যা\n"
     "/tools — সব tool &amp; flag এর সম্পূর্ণ গাইড\n"
-    "/credits — ক্রেডিট\n"
     "/status — queue স্ট্যাটাস\n"
     "/cancel — চলমান patch বাতিল\n"
     "/new — নতুন সেশন (আগের ফাইল বাদ)\n"
-    "/clean — পুরনো job ফাইল মুছে ফেলুন\n\n"
-    "⚠️ <b>মনে রাখবেন:</b> <code>-rmads / -r / -A / -A2 / -t / -pine</code> দিলে tool এর নিজস্ব লজিক অনুযায়ী SSL/VPN smali patch apply হবে না।\n"
+    "/clean — পুরনো job ফাইল মুছে ফেলুন\n"
+    "/credits — টিম ও ডেভেলপার\n"
+    "/id — আপনার Telegram ID\n\n"
+    "⚠️ <b>মনে রাখবেন:</b> <code>-rmads / -r / -A / -A2 / -t / -pine</code> দিলে tool এর নিজস্ব লজিক অনুযায়ী SSL/VPN smali patch apply হয় না।\n"
     "🛡️ শুধু নিজের APK/নিজের টেস্টে ব্যবহার করুন।"
 )
 
 FLAGS_TEXT = (
-    "🛠️ <b>ApkPatcher — সব Tools &amp; Flags</b>\n"
+    "🛠️ <b>CRACKED GR — সব Tools &amp; Flags</b>\n"
+    "👑 <b>DEVELOPER: ZX ROCK 007</b>\n"
     "━━━━━━━━━━━━━━━━━━━━\n"
     "📥 <b>Main Modes:</b>\n"
     "• ফাইল পাঠান → Smali Patcher (ডিফল্ট: <b>VPN &amp; SSL Bypass</b>)\n"
@@ -211,18 +194,8 @@ FLAGS_TEXT = (
     "• ⏭️ <b>-skip name1 name2</b> — নির্দিষ্ট smali patch স্কিপ (e.g. getAcceptedIssuers)\n\n"
     "🤖 <b>Bot নিজের Tools:</b>\n"
     "• 📊 Live log streaming + queue + <code>/cancel</code>\n"
-    + (
-        "• 🌐 <code>/web</code> — ব্রাউজার থেকে যেকোনো সাইজ আপলোড\n"
-        "• 📂 <code>/scan</code> — input ফোল্ডার থেকে ফাইল বাছুন\n"
-        if WEB_ENABLED
-        else ""
-    )
-    + "• 🔗 <code>/url</code> — ডাইরেক্ট লিংক থেকে ডাউনলোড\n"
-    + (
-        "• 📤 Output → Telegram + <code>/sdcard/Download/ApkPatcherBot/output/</code> এ auto-save\n\n"
-        if WEB_ENABLED
-        else "• 📤 Output সরাসরি Telegram-এ ফেরত আসে (২GB পর্যন্ত)\n\n"
-    )
+    "• 🔗 <code>/url</code> — ডাইরেক্ট লিংক থেকে ডাউনলোড\n"
+    "• 📤 Output সরাসরি Telegram-এ ফেরত আসে (২GB পর্যন্ত)\n\n"
     + "⚠️ <b>মনে রাখবেন:</b> <code>-A / -A2 / -r / -rmads / -t / -pine</code> এর যেকোনোটা দিলে tool শুধু সেটাই apply করে (ডিফল্ট SSL/NSC বাদ) — CLI এর exact আচরণ।\n"
     "🛡️ শুধু নিজের APK/নিজের টেস্টে ব্যবহার করুন।"
 )
@@ -416,13 +389,6 @@ async def activate_session(bot, chat_id: int, s: Session, input_path: str, name:
         chat_id, panel_text(s), reply_markup=panel_keyboard(s), parse_mode=ParseMode.HTML
     )
     s.panel_msg_id = panel.message_id
-    await bot.send_message(
-        chat_id,
-        "📁 প্যাচ শেষে আউটপুট: <code>" + esc(OUTBOX_DIR) + "</code>\n"
-        "🌐 অথবা /web লিংক থেকে ডাউনলোড করতে পারবেন।",
-        parse_mode=ParseMode.HTML,
-        disable_notification=True,
-    )
     return s
 
 
@@ -668,7 +634,7 @@ async def run_job(app: Application, job: Job):
         if outsize <= TG_UPLOAD_LIMIT:
             lines.append("📨 Telegram এও পাঠানো হচ্ছে…")
         else:
-            lines.append(f"⚠️ ফাইলটা {human_size(TG_UPLOAD_LIMIT)} এর চেয়ে বড় — Storage/লিংক থেকে নিন।")
+            lines.append(f"⚠️ ফাইলটা অনেক বড় — Telegram-এ সরাসরি পাঠানো যাচ্ছে না।")
         await job_status_edit(bot, job, "\n".join(lines), tail=False)
         if outsize <= TG_UPLOAD_LIMIT:
             try:
@@ -771,8 +737,6 @@ def commands_list():
     return [
         BotCommand("start", "শুরু করুন"),
         BotCommand("help", "সাহায্য ও ব্যবহারবিধি"),
-        BotCommand("web", "লিমিট-ফ্রি ব্রাউজার আপলোড"),
-        BotCommand("scan", "input ফোল্ডার থেকে ফাইল বাছুন"),
         BotCommand("url", "লিংক থেকে APK নামান"),
         BotCommand("flags", "সব patch flag এর লিস্ট"),
         BotCommand("tools", "সব tool ও flag এর গাইড"),
@@ -813,15 +777,11 @@ async def cmd_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not allowed(update):
         return await deny(update)
     await update.message.reply_text(
-        "💢 <b>Credits</b> 💢\n\n"
-        "🦋 Flutter SSL & TG Patch — AbhiTheM0dder (@AbhiTheM0dder)\n"
-        "🌲 Pine Hook — AbhiTheM0dder | 残页 (@canyie)\n"
-        "🔐 MITM — Niklas Higi (apk-mitm)\n"
-        "🔧 APKTool — Connor Tumbleson (@iBotPeaches)\n"
-        "🧩 APKEditor — REAndroid (@kikfox)\n"
-        "✍️ ApkSig — Android Tools Build\n"
-        "👑 ApkPatcherX — RK_TECHNO_INDIA (@RK_TECHNO_INDIA)\n\n"
-        "🛠️ Telegram Bot wrapper — আপনার জন্য বানানো",
+        "💢 <b>CRACKED GR</b> 💢\n"
+        "👑 <b>DEVELOPER: ZX ROCK 007</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🛠️ সম্পূর্ণ APK patching সলিউশন — স্মার্ট, ফাস্ট ও প্রফেশনাল।\n"
+        "🛡️ শুধু নিজের APK/নিজের টেস্টে ব্যবহার করুন।",
         parse_mode=ParseMode.HTML,
     )
 
@@ -1083,7 +1043,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if uid == "scan":
-        await handle_scan_callback(update, context, action, rest)
+        await q.answer("⚠️ এই ফিচারটি সরানো হয়েছে।", show_alert=True)
         return
 
     s = SESSIONS.get(uid)
@@ -1604,8 +1564,6 @@ def main():
     )
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
-    app.add_handler(CommandHandler("web", cmd_web))
-    app.add_handler(CommandHandler("scan", cmd_scan))
     app.add_handler(CommandHandler("url", cmd_url))
     app.add_handler(CommandHandler("flags", cmd_flags))
     app.add_handler(CommandHandler("tools", cmd_tools))
