@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Apply the arm/emulator aapt2 fix to the installed ApkPatcher package.
+"""Force the installed ApkPatcher to use the system aapt2 for apktool builds.
 
-The original APKTool jar used with -e (PC emulator mode) bundles an x86 aapt2
-binary that cannot run on ARM (and is fragile on other hosts too). Force the
-tool to use the system aapt2 via apktool's --aapt flag.
+The non-Windows download APKTool_Termux.jar bundles an aarch64 aapt2 under
+prebuilt/linux/aapt2. On an x86_64 CI runner that binary cannot execute, so
+apktool falls back to running it through a shell and fails with
+"ELF ... not found" / "Syntax error: ( unexpected".
+
+Passing the system aapt2 (x86_64, already on PATH) via apktool's --aapt flag
+overrides the bundled binary and fixes both normal and -e (emulator) builds.
 """
 
 import os
@@ -17,12 +21,13 @@ TARGET = os.path.join(
 
 ANCHOR = 'cmd = ["java", "-jar", APKTool_Path, "b", decompile_dir, "-o", build_dir, "-p", decompile_dir, "-f", "--copy-original"]'
 
-FIX = ANCHOR + """
+MARKER = "# patcher: use system aapt2"
 
-        if isEmulator:
-            _aapt2 = M.shutil.which("aapt2")
-            if _aapt2:
-                cmd += ["--aapt", _aapt2]
+FIX = ANCHOR + f"""
+
+        _aapt2 = M.shutil.which("aapt2")
+        if _aapt2:  {MARKER}
+            cmd += ["--aapt", _aapt2]
 """
 
 
@@ -30,7 +35,7 @@ def main() -> int:
     with open(TARGET, encoding="utf-8") as f:
         src = f.read()
 
-    if "isEmulator:" in src and "--aapt" in src:
+    if MARKER in src or ("isEmulator:" in src and "--aapt" in src):
         print("[patch] already applied")
         return 0
 
