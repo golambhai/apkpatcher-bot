@@ -56,7 +56,8 @@ jobs:
         run: |
           docker pull aiogram/telegram-bot-api:latest
           sudo mkdir -p /var/lib/telegram-bot-api
-          sudo chmod 777 /var/lib/telegram-bot-api
+          sudo mkdir -p "/var/lib/telegram-bot-api/$BOT_TOKEN/documents"
+          sudo chmod -R 777 /var/lib/telegram-bot-api
           docker run -d --name tgapi -p 8081:8081 \
             --entrypoint telegram-bot-api \
             -v /var/lib/telegram-bot-api:/var/lib/telegram-bot-api \
@@ -84,7 +85,7 @@ jobs:
           JAVA_TOOL_OPTIONS: "-Xmx3g"
           PYTHONUNBUFFERED: "1"
         run: |
-          timeout --signal=INT 21000 python -u bot.py || true
+          sudo -E env PATH="$PATH" timeout --signal=INT 21000 python -u bot.py || true
 
       - name: Stop local Bot API server
         if: always()
