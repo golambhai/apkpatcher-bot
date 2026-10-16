@@ -115,6 +115,8 @@ if LOCAL_API:
         "বিকল্প: <code>/url &lt;direct-link&gt;</code> — লিংক দিলে বট নিজে নামিয়ে নেবে।"
     )
 
+LAST_DL_ERROR = None
+
 LIMIT_NOTE = (
     "♾️ <b>Local Bot API server চালু আছে — Telegram-এ সরাসরি ~2GB পর্যন্ত ফাইল পাঠাতে পারবেন!</b>\n\n"
     if LOCAL_API
@@ -904,6 +906,32 @@ async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("ℹ️ বাতিল করার মত কোনো job নেই।")
 
 
+async def cmd_diag(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not allowed(update):
+        return await deny(update)
+    lines = []
+    try:
+        out = subprocess.run(
+            ["docker", "logs", "--tail", "6", "tgapi"],
+            capture_output=True, text=True, timeout=20,
+        )
+        lines.append("docker:\n" + esc((out.stdout + out.stderr)[-700:]))
+    except Exception as e:
+        lines.append("docker logs failed: " + esc(str(e))[:200])
+    try:
+        wd = "/var/lib/telegram-bot-api"
+        if os.path.isdir(wd):
+            top = os.listdir(wd)[:10]
+            docs = os.path.join(wd, "documents")
+            lines.append(f"workdir: {esc(str(top))} docs={len(os.listdir(docs)) if os.path.isdir(docs) else 'n/a'}")
+        else:
+            lines.append("workdir: MISSING")
+    except Exception as e:
+        lines.append("ls failed: " + esc(str(e))[:200])
+    lines.append("lastdl: " + esc(str(LAST_DL_ERROR))[:250])
+    await update.message.reply_text("🔧 <b>DIAG</b>\n" + "\n".join(lines), parse_mode=ParseMode.HTML)
+
+
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not allowed(update):
         return await deny(update)
@@ -943,8 +971,14 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         tg_file = await context.bot.get_file(doc.file_id)
         await tg_file.download_to_drive(custom_path=dest)
-    except (TelegramError, BadRequest):
-        await msg.reply_text(TOO_BIG_TEXT, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        global LAST_DL_ERROR
+        LAST_DL_ERROR = f"{type(e).__name__}: {e}"
+        print(f"[download] FAILED size={doc.file_size} err={LAST_DL_ERROR}", flush=True)
+        await msg.reply_text(
+            TOO_BIG_TEXT + f"\n\n🔧 <code>{esc(str(e))[:300]}</code>",
+            parse_mode=ParseMode.HTML,
+        )
         shutil.rmtree(new_s.dir, ignore_errors=True)
         return
 
@@ -1557,6 +1591,7 @@ def main():
     app.add_handler(CommandHandler("clean", cmd_clean))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("cancel", cmd_cancel))
+    app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     app.add_handler(CallbackQueryHandler(handle_callback))

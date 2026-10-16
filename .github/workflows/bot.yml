@@ -72,6 +72,8 @@ jobs:
             sleep 2
           done
           cat /tmp/getme.json || { echo "local Bot API server failed to start"; docker logs tgapi | tail -50; exit 1; }
+          echo "--- tgapi cmdline/logs ---"
+          docker logs tgapi 2>&1 | head -4 || true
 
       - name: Run bot (5h50m then graceful restart)
         env:
