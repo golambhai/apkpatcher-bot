@@ -1,0 +1,79 @@
+name: test-suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: "space-separated case names (empty = all 23)"
+        required: false
+        default: ""
+      src_url:
+        description: "APK download URL for TEST_SRC_APK"
+        required: false
+        default: "https://github.com/ReVanced/revanced-manager/releases/download/v2.4.0/revanced-manager-2.4.0.apk"
+      workers:
+        description: "parallel workers"
+        required: false
+        default: "2"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup aapt2
+        run: bash scripts/setup_aapt2.sh
+
+      - name: Install python deps + runtime patch
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python scripts/patch_apkpatcher.py
+
+      - name: Fetch test APK
+        run: |
+          curl -fL --retry 3 -o /tmp/test-src.apk "${{ inputs.src_url }}"
+          ls -la /tmp/test-src.apk
+
+      - name: Run verification
+        env:
+          TEST_SRC_APK: /tmp/test-src.apk
+          TEST_WORKERS: ${{ inputs.workers }}
+          JAVA_TOOL_OPTIONS: "-Xmx1500m"
+          PYTHONUNBUFFERED: "1"
+        run: python -u tools_test.py ${{ inputs.cases }}
+
+      - name: Summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          p = "data/tools_test/report.json"
+          if not os.path.isfile(p):
+              print("no report found")
+              raise SystemExit(0)
+          r = json.load(open(p, encoding="utf-8"))
+          lines = [f"TOTAL {r['total']} | PASS {r['passed']} | FAIL {len(r['failed'])} | {r['elapsed_secs']/60:.1f} min"]
+          for name, res in r["results"].items():
+              lines.append(f"- {'PASS' if res.get('ok') else 'FAIL'} {name} ({res.get('secs', '?')}s)")
+          text = "\n".join(lines)
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("```\n" + text + "\n```\n")
+          PY
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tools-test-report
+          path: |
+            data/tools_test/report.json
+            data/tools_test/*.log

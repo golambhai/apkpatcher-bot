@@ -1,0 +1,93 @@
+name: bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 */6 * * *"
+  workflow_run:
+    workflows: ["bot"]
+    types: [completed]
+
+concurrency:
+  group: bot-run
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      ALLOWED_USERS: ${{ secrets.ALLOWED_USERS }}
+      API_ID: ${{ secrets.API_ID }}
+      API_HASH: ${{ secrets.API_HASH }}
+    steps:
+      - name: Failure backoff (avoid fast restart loops)
+        if: github.event_name == 'workflow_run'
+        run: |
+          s=$(date -d "${{ github.event.workflow_run.run_started_at }}" +%s)
+          u=$(date -d "${{ github.event.workflow_run.updated_at }}" +%s)
+          d=$((u - s))
+          echo "previous run duration: ${d}s"
+          if [ "$d" -lt 600 ]; then
+            echo "instant previous run -> 1h backoff before retry"
+            sleep 3600
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Heartbeat commit (keeps scheduled workflow enabled)
+        run: |
+          date -u +"%Y-%m-%d %H:%M:%S UTC" > .heartbeat
+          git config user.name "apkbot"
+          git config user.email "apkbot@users.noreply.github.com"
+          git add .heartbeat
+          git commit -m "heartbeat $(date -u +%F)" || true
+          git push origin HEAD:${{ github.event.repository.default_branch }} || true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup aapt2
+        run: bash scripts/setup_aapt2.sh
+
+      - name: Install python deps + runtime patch
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python scripts/patch_apkpatcher.py
+
+      - name: Start local Bot API server
+        run: |
+          docker pull aiogram/telegram-bot-api:latest
+          docker run -d --name tgapi -p 8081:8081 \
+            -e TELEGRAM_API_ID="$API_ID" \
+            -e TELEGRAM_API_HASH="$API_HASH" \
+            -e TELEGRAM_LOCAL=1 \
+            aiogram/telegram-bot-api:latest
+          for i in $(seq 1 60); do
+            if curl -sf -m 3 "http://127.0.0.1:8081/bot${BOT_TOKEN}/getMe" > /tmp/getme.json; then
+              break
+            fi
+            sleep 2
+          done
+          cat /tmp/getme.json || { echo "local Bot API server failed to start"; docker logs tgapi | tail -50; exit 1; }
+
+      - name: Run bot (5h50m then graceful restart)
+        env:
+          LOCAL_API: "1"
+          WEB_DISABLE: "1"
+          SHARED_BASE: ${{ github.workspace }}/shared
+          JAVA_TOOL_OPTIONS: "-Xmx3g"
+          PYTHONUNBUFFERED: "1"
+        run: |
+          timeout --signal=INT 21000 python -u bot.py || true
+
+      - name: Stop local Bot API server
+        if: always()
+        run: docker rm -f tgapi || true
