@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "15 */6 * * *"
-  workflow_run:
-    workflows: ["bot"]
-    types: [completed]
 
 concurrency:
   group: bot-run
@@ -25,18 +22,6 @@ jobs:
       API_ID: ${{ secrets.API_ID }}
       API_HASH: ${{ secrets.API_HASH }}
     steps:
-      - name: Failure backoff (avoid fast restart loops)
-        if: github.event_name == 'workflow_run'
-        run: |
-          s=$(date -d "${{ github.event.workflow_run.run_started_at }}" +%s)
-          u=$(date -d "${{ github.event.workflow_run.updated_at }}" +%s)
-          d=$((u - s))
-          echo "previous run duration: ${d}s"
-          if [ "$d" -lt 600 ]; then
-            echo "instant previous run -> 1h backoff before retry"
-            sleep 3600
-          fi
-
       - uses: actions/checkout@v4
 
       - name: Heartbeat commit (keeps scheduled workflow enabled)

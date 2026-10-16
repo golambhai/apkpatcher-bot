@@ -1,0 +1,32 @@
+name: chain
+
+on:
+  workflow_run:
+    workflows: ["bot"]
+    types: [completed]
+
+jobs:
+  next:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Backoff after instant runs (avoid fast restart loops)
+        run: |
+          s=$(date -d "${{ github.event.workflow_run.run_started_at }}" +%s)
+          u=$(date -d "${{ github.event.workflow_run.updated_at }}" +%s)
+          d=$((u - s))
+          echo "previous run duration: ${d}s"
+          if [ "$d" -lt 600 ]; then
+            echo "instant previous run -> 1h backoff before retry"
+            sleep 3600
+          fi
+
+      - name: Dispatch next bot cycle
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/bot.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "next cycle requested"
