@@ -61,6 +61,23 @@ jobs:
           echo "RESULT | tilks-aarch64-qemu | assets/tilks-aapt2-aarch64 | $ver | $r | $(echo "$out" | head -1)"
           ls -la /tmp/probe/tilks.zip 2>/dev/null || true
 
+      - name: Probe radare2 availability (flutter patch)
+        run: |
+          if ! command -v r2 >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq radare2 >/dev/null
+          fi
+          echo "which r2: $(command -v r2 || echo MISSING)"
+          r2 -V 2>&1 | head -2 || true
+          python3 -m pip install -q r2pipe 2>/dev/null || true
+          python3 - <<'PY'
+          import r2pipe
+          r2 = r2pipe.open("/bin/ls", flags=["-e", "log.quiet=true"])
+          print("r2pipe arch:", r2.cmd("e asm.arch").strip())
+          r2.quit()
+          print("R2PIPE SMOKE PASS")
+          PY
+
       - name: Benchmark native vs qemu (300 resources)
         run: |
           python3 - <<'PY'
