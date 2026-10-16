@@ -58,6 +58,7 @@ TG_UPLOAD_LIMIT = 49 * 1024 * 1024
 
 LOCAL_API = os.environ.get("LOCAL_API") == "1"
 LOCAL_API_URL = os.environ.get("LOCAL_API_URL", "http://127.0.0.1:8081/bot")
+LOCAL_FILE_URL = os.environ.get("LOCAL_FILE_URL", "http://127.0.0.1:8081/file/bot")
 if LOCAL_API:
     TG_DOWNLOAD_LIMIT = 1990 * 1024 * 1024
     TG_UPLOAD_LIMIT = 1990 * 1024 * 1024
@@ -1575,6 +1576,7 @@ def main():
         .write_timeout(1800)
         .pool_timeout(60)
         .base_url(LOCAL_API_URL if LOCAL_API else "https://api.telegram.org/bot")
+        .base_file_url(LOCAL_FILE_URL if LOCAL_API else "https://api.telegram.org/file/bot")
         .local_mode(LOCAL_API)
         .build()
     )
