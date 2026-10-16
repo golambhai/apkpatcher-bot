@@ -19,6 +19,13 @@ chmod +x "$HOME/bin/pkg"
 echo "$HOME/bin" >> "$GITHUB_PATH"
 echo "[pkg] shim installed (pretends aapt2/openjdk-17 installed)"
 
+# No-op shims for Termux-only commands the patcher uses.
+for shim in termux-wake-lock termux-wake-unlock; do
+  printf '#!/bin/bash\nexit 0\n' > "$HOME/bin/$shim"
+  chmod +x "$HOME/bin/$shim"
+done
+echo "[termux] wake-lock shims installed"
+
 if command -v aapt2 >/dev/null 2>&1; then
   echo "[aapt2] already on PATH: $(command -v aapt2)"
   "$(command -v aapt2)" version || true
