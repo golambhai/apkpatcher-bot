@@ -17,6 +17,7 @@ case "$1" in
   list-installed)
     echo "aapt2/stable,now 1.0.0 aarch64 [installed]"
     echo "openjdk-17/stable,now 17 aarch64 [installed]"
+    echo "radare2/stable,now 6.2.4 aarch64 [installed]"
     ;;
   *) exit 0 ;;
 esac
@@ -31,6 +32,19 @@ for shim in termux-wake-lock termux-wake-unlock; do
   chmod +x "$HOME/bin/$shim"
 done
 echo "[termux] wake-lock shims installed"
+
+# Flutter SSL patch needs radare2 ('r2'); otherwise Flutter_SSL_Patch crashes
+# with "'NoneType' object has no attribute 'split'".
+if ! command -v r2 >/dev/null 2>&1; then
+  echo "[r2] installing radare2..."
+  sudo apt-get update -qq || true
+  sudo apt-get install -y -qq radare2 >/dev/null 2>&1 || true
+fi
+if command -v r2 >/dev/null 2>&1; then
+  echo "[r2] $(r2 -V 2>&1 | head -1)"
+else
+  echo "[r2] WARNING: radare2 not available - flutter patch will fail"
+fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ASSET="$REPO_ROOT/assets/tilks-aapt2-aarch64"
