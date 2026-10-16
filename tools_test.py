@@ -33,6 +33,7 @@ WORKERS = int(os.environ.get("TEST_WORKERS", "2"))
 CASES = [
     ("default",      ["-i", "{apk}"]),
     ("editor_a",     ["-i", "{apk}", "-a"]),
+    ("editor_mods",  ["-i", "{apk}", "-a", "-pine", "-l", "{mod}"]),
     ("emulator_e",   ["-i", "{apk}", "-e"]),
     ("unsigned_u",   ["-i", "{apk}", "-u"]),
     ("flutter_f",    ["-i", "{apk}", "-f"]),

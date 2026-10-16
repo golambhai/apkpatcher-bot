@@ -3,42 +3,87 @@ on: workflow_dispatch
 jobs:
   probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+
       - name: Prepare probe resources
         run: |
           mkdir -p /tmp/probe/res/drawable /tmp/probe/res/values
           printf '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="1dp" android:height="1dp" android:viewportWidth="1" android:viewportHeight="1"/>' > '/tmp/probe/res/drawable/$probe__0.xml'
           printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <public type="drawable" name="$probe__0" id="0x7f080001"/>\n</resources>\n' > /tmp/probe/res/values/public.xml
+
       - name: List SDK build-tools
         run: ls -d /usr/local/lib/android/sdk/build-tools/*/ || true
+
       - name: Probe SDK aapt2 versions
         run: |
           for a in /usr/local/lib/android/sdk/build-tools/*/aapt2; do
             [ -x "$a" ] || continue
             ver=$("$a" version 2>&1 | head -1)
-            if "$a" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip >/dev/null 2>&1; then r=PASS; else r=FAIL; fi
-            echo "RESULT | sdk | $a | $ver | $r"
             rm -f /tmp/probe/out.zip
+            if out=$("$a" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip 2>&1); then r=PASS; else r=FAIL; fi
+            echo "RESULT | sdk | $a | $ver | $r | $(echo "$out" | head -1)"
           done
+
       - name: Probe downloaded candidates
         run: |
           probe() {
             name="$1"; url="$2"
-            d="/tmp/cand/$name"; mkdir -p "$d"
+            d="/tmp/cand/$name"; mkdir -p "$d/ext"
             if ! curl -fsSL --max-time 180 -o "$d/pkg" "$url"; then
-              echo "RESULT | $name | download-failed | - | FAIL"; return; fi
-            mkdir -p "$d/ext"
+              echo "RESULT | $name | download-failed | - | FAIL |"; return; fi
             unzip -q -o "$d/pkg" -d "$d/ext" 2>/dev/null || true
             bin="$(find "$d/ext" -name aapt2 -type f | head -1)"
-            if [ -z "$bin" ]; then echo "RESULT | $name | no-binary | - | FAIL"; return; fi
+            if [ -z "$bin" ]; then echo "RESULT | $name | no-binary | - | FAIL |"; return; fi
             chmod +x "$bin"
             ver="$("$bin" version 2>&1 | head -1)"
-            if "$bin" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip >/dev/null 2>&1; then r=PASS; else r=FAIL; fi
-            echo "RESULT | $name | $bin | $ver | $r"
             rm -f /tmp/probe/out.zip
+            if out=$("$bin" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip 2>&1); then r=PASS; else r=FAIL; fi
+            echo "RESULT | $name | $bin | $ver | $r | $(echo "$out" | head -1)"
           }
-          probe google33 https://dl.google.com/android/repository/build-tools_r33.0.2-linux.zip
-          probe google32 https://dl.google.com/android/repository/build-tools_r32.0.0-linux.zip
-          probe google30 https://dl.google.com/android/repository/build-tools_r30.0.3-linux.zip
-          probe lz33 https://github.com/lzhiyong/android-sdk-tools/releases/download/33.0.3/android-sdk-tools-static-x86_64.zip
           probe lz34 https://github.com/lzhiyong/android-sdk-tools/releases/download/34.0.3/android-sdk-tools-static-x86_64.zip
+
+      - name: Probe tilks aarch64 under qemu
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user-static >/dev/null
+          QEMU=""
+          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static
+          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64
+          echo "using qemu: $QEMU"
+          "$QEMU" --version | head -1 || true
+          chmod +x assets/tilks-aapt2-aarch64
+          ver=$("$QEMU" assets/tilks-aapt2-aarch64 version 2>&1 | head -1)
+          echo "tilks version: $ver"
+          rm -f /tmp/probe/tilks.zip
+          if out=$("$QEMU" assets/tilks-aapt2-aarch64 compile --dir /tmp/probe/res --legacy -o /tmp/probe/tilks.zip 2>&1); then r=PASS; else r=FAIL; fi
+          echo "RESULT | tilks-aarch64-qemu | assets/tilks-aapt2-aarch64 | $ver | $r | $(echo "$out" | head -1)"
+          ls -la /tmp/probe/tilks.zip 2>/dev/null || true
+
+      - name: Benchmark native vs qemu (300 resources)
+        run: |
+          python3 - <<'PY'
+import os
+d = "/tmp/bench/res"
+os.makedirs(d + "/drawable", exist_ok=True)
+os.makedirs(d + "/values", exist_ok=True)
+pub = ['<?xml version="1.0" encoding="utf-8"?>', '<resources>']
+for i in range(300):
+    with open(f"{d}/drawable/b_{i}.xml", "w") as f:
+        f.write('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="1dp" android:height="1dp" android:viewportWidth="1" android:viewportHeight="1"/>')
+    pub.append(f'  <public type="drawable" name="b_{i}" id="0x7f08{i:04x}"/>')
+pub.append('</resources>')
+with open(d + "/values/public.xml", "w") as f:
+    f.write("\n".join(pub))
+print("bench resources ready")
+PY
+          QEMU=""
+          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static
+          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64
+          SDK=$(ls /usr/local/lib/android/sdk/build-tools/*/aapt2 | sort -V | tail -1)
+          echo "== native ($SDK) =="
+          time "$SDK" compile --dir /tmp/bench/res --legacy -o /tmp/bench/native.zip || true
+          echo "== qemu ($QEMU) =="
+          time "$QEMU" assets/tilks-aapt2-aarch64 compile --dir /tmp/bench/res --legacy -o /tmp/bench/qemu.zip || true
+          ls -la /tmp/bench/*.zip 2>/dev/null || true
