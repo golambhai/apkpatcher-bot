@@ -1,0 +1,44 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare probe resources
+        run: |
+          mkdir -p /tmp/probe/res/drawable /tmp/probe/res/values
+          printf '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="1dp" android:height="1dp" android:viewportWidth="1" android:viewportHeight="1"/>' > '/tmp/probe/res/drawable/$probe__0.xml'
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <public type="drawable" name="$probe__0" id="0x7f080001"/>\n</resources>\n' > /tmp/probe/res/values/public.xml
+      - name: List SDK build-tools
+        run: ls -d /usr/local/lib/android/sdk/build-tools/*/ || true
+      - name: Probe SDK aapt2 versions
+        run: |
+          for a in /usr/local/lib/android/sdk/build-tools/*/aapt2; do
+            [ -x "$a" ] || continue
+            ver=$("$a" version 2>&1 | head -1)
+            if "$a" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip >/dev/null 2>&1; then r=PASS; else r=FAIL; fi
+            echo "RESULT | sdk | $a | $ver | $r"
+            rm -f /tmp/probe/out.zip
+          done
+      - name: Probe downloaded candidates
+        run: |
+          probe() {
+            name="$1"; url="$2"
+            d="/tmp/cand/$name"; mkdir -p "$d"
+            if ! curl -fsSL --max-time 180 -o "$d/pkg" "$url"; then
+              echo "RESULT | $name | download-failed | - | FAIL"; return; fi
+            mkdir -p "$d/ext"
+            unzip -q -o "$d/pkg" -d "$d/ext" 2>/dev/null || true
+            bin="$(find "$d/ext" -name aapt2 -type f | head -1)"
+            if [ -z "$bin" ]; then echo "RESULT | $name | no-binary | - | FAIL"; return; fi
+            chmod +x "$bin"
+            ver="$("$bin" version 2>&1 | head -1)"
+            if "$bin" compile --dir /tmp/probe/res --legacy -o /tmp/probe/out.zip >/dev/null 2>&1; then r=PASS; else r=FAIL; fi
+            echo "RESULT | $name | $bin | $ver | $r"
+            rm -f /tmp/probe/out.zip
+          }
+          probe google33 https://dl.google.com/android/repository/build-tools_r33.0.2-linux.zip
+          probe google32 https://dl.google.com/android/repository/build-tools_r32.0.0-linux.zip
+          probe google30 https://dl.google.com/android/repository/build-tools_r30.0.3-linux.zip
+          probe lz33 https://github.com/lzhiyong/android-sdk-tools/releases/download/33.0.3/android-sdk-tools-static-x86_64.zip
+          probe lz34 https://github.com/lzhiyong/android-sdk-tools/releases/download/34.0.3/android-sdk-tools-static-x86_64.zip
