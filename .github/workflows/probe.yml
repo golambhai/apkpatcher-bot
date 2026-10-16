@@ -49,8 +49,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-user-static >/dev/null
           QEMU=""
-          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static
-          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64
+          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static || true
+          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64 || true
           echo "using qemu: $QEMU"
           "$QEMU" --version | head -1 || true
           chmod +x assets/tilks-aapt2-aarch64
@@ -64,23 +64,23 @@ jobs:
       - name: Benchmark native vs qemu (300 resources)
         run: |
           python3 - <<'PY'
-import os
-d = "/tmp/bench/res"
-os.makedirs(d + "/drawable", exist_ok=True)
-os.makedirs(d + "/values", exist_ok=True)
-pub = ['<?xml version="1.0" encoding="utf-8"?>', '<resources>']
-for i in range(300):
-    with open(f"{d}/drawable/b_{i}.xml", "w") as f:
-        f.write('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="1dp" android:height="1dp" android:viewportWidth="1" android:viewportHeight="1"/>')
-    pub.append(f'  <public type="drawable" name="b_{i}" id="0x7f08{i:04x}"/>')
-pub.append('</resources>')
-with open(d + "/values/public.xml", "w") as f:
-    f.write("\n".join(pub))
-print("bench resources ready")
-PY
+          import os
+          d = "/tmp/bench/res"
+          os.makedirs(d + "/drawable", exist_ok=True)
+          os.makedirs(d + "/values", exist_ok=True)
+          pub = ['<?xml version="1.0" encoding="utf-8"?>', '<resources>']
+          for i in range(300):
+              with open(f"{d}/drawable/b_{i}.xml", "w") as f:
+                  f.write('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="1dp" android:height="1dp" android:viewportWidth="1" android:viewportHeight="1"/>')
+              pub.append(f'  <public type="drawable" name="b_{i}" id="0x7f08{i:04x}"/>')
+          pub.append('</resources>')
+          with open(d + "/values/public.xml", "w") as f:
+              f.write("\n".join(pub))
+          print("bench resources ready")
+          PY
           QEMU=""
-          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static
-          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64
+          command -v qemu-aarch64-static >/dev/null 2>&1 && QEMU=qemu-aarch64-static || true
+          [ -z "$QEMU" ] && command -v qemu-aarch64 >/dev/null 2>&1 && QEMU=qemu-aarch64 || true
           SDK=$(ls /usr/local/lib/android/sdk/build-tools/*/aapt2 | sort -V | tail -1)
           echo "== native ($SDK) =="
           time "$SDK" compile --dir /tmp/bench/res --legacy -o /tmp/bench/native.zip || true
