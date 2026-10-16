@@ -923,12 +923,24 @@ async def cmd_diag(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wd = "/var/lib/telegram-bot-api"
         if os.path.isdir(wd):
             top = os.listdir(wd)[:10]
-            docs = os.path.join(wd, "documents")
-            lines.append(f"workdir: {esc(str(top))} docs={len(os.listdir(docs)) if os.path.isdir(docs) else 'n/a'}")
+            lines.append(f"workdir: {esc(str(top))}")
         else:
             lines.append("workdir: MISSING")
     except Exception as e:
         lines.append("ls failed: " + esc(str(e))[:200])
+    try:
+        tdir = os.path.join("/var/lib/telegram-bot-api", BOT_TOKEN)
+        if os.path.isdir(tdir):
+            entries = os.listdir(tdir)[:10]
+            docs = os.path.join(tdir, "documents")
+            ndocs = len(os.listdir(docs)) if os.path.isdir(docs) else "n/a"
+            st = os.stat(docs) if os.path.isdir(docs) else None
+            mode = oct(st.st_mode & 0o777) if st else "?"
+            lines.append(f"tokdir: {esc(str(entries))} ndocs={ndocs} dmode={mode}")
+        else:
+            lines.append("tokdir: MISSING")
+    except Exception as e:
+        lines.append("tokdir err: " + esc(f"{type(e).__name__}: {e}")[:150])
     lines.append("lastdl: " + esc(str(LAST_DL_ERROR))[:250])
     await update.message.reply_text("🔧 <b>DIAG</b>\n" + "\n".join(lines), parse_mode=ParseMode.HTML)
 
@@ -969,15 +981,25 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_s = Session(chat_id)
     safe = sanitize_name(raw_name)
     dest = os.path.join(new_s.dir, safe)
+    fp = None
+    isf = None
     try:
         tg_file = await context.bot.get_file(doc.file_id)
+        fp = str(tg_file.file_path or "")
+        try:
+            isf = os.path.isfile(fp)
+        except Exception as ie:
+            isf = f"err:{type(ie).__name__}"
         await tg_file.download_to_drive(custom_path=dest)
     except Exception as e:
         global LAST_DL_ERROR
         LAST_DL_ERROR = f"{type(e).__name__}: {e}"
-        print(f"[download] FAILED size={doc.file_size} err={LAST_DL_ERROR}", flush=True)
+        print(f"[download] FAILED size={doc.file_size} fp={fp} isfile={isf} err={LAST_DL_ERROR}", flush=True)
+        dbg = f"{type(e).__name__}: {str(e)[:120]}"
+        if fp:
+            dbg += f" | path={fp[:180]} isfile={isf}"
         await msg.reply_text(
-            TOO_BIG_TEXT + f"\n\n🔧 <code>{esc(str(e))[:300]}</code>",
+            TOO_BIG_TEXT + f"\n\n🔧 <code>{esc(dbg)}</code>",
             parse_mode=ParseMode.HTML,
         )
         shutil.rmtree(new_s.dir, ignore_errors=True)
