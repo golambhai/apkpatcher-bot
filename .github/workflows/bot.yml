@@ -21,6 +21,7 @@ jobs:
       ALLOWED_USERS: ${{ secrets.ALLOWED_USERS }}
       API_ID: ${{ secrets.API_ID }}
       API_HASH: ${{ secrets.API_HASH }}
+      TERM: xterm
     steps:
       - uses: actions/checkout@v4
 
@@ -54,9 +55,14 @@ jobs:
       - name: Start local Bot API server
         run: |
           docker pull aiogram/telegram-bot-api:latest
+          sudo mkdir -p /var/lib/telegram-bot-api
+          sudo chmod 777 /var/lib/telegram-bot-api
           docker run -d --name tgapi -p 8081:8081 \
+            -v /var/lib/telegram-bot-api:/var/lib/telegram-bot-api \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
             -e TELEGRAM_API_ID="$API_ID" \
             -e TELEGRAM_API_HASH="$API_HASH" \
+            -e TELEGRAM_WORK_DIR=/var/lib/telegram-bot-api \
             -e TELEGRAM_LOCAL=1 \
             aiogram/telegram-bot-api:latest
           for i in $(seq 1 60); do

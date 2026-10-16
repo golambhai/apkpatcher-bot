@@ -20,6 +20,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    env:
+      TERM: xterm
     steps:
       - uses: actions/checkout@v4
 

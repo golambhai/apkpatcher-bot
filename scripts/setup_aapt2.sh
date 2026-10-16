@@ -4,6 +4,21 @@ set -euo pipefail
 
 mkdir -p "$HOME/bin"
 
+# Fake Termux `pkg` so the ApkPatcher dependency check passes on Linux CI.
+cat > "$HOME/bin/pkg" <<'EOF'
+#!/bin/bash
+case "$1" in
+  list-installed)
+    echo "aapt2/stable,now 1.0.0 aarch64 [installed]"
+    echo "openjdk-17/stable,now 17 aarch64 [installed]"
+    ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$HOME/bin/pkg"
+echo "$HOME/bin" >> "$GITHUB_PATH"
+echo "[pkg] shim installed (pretends aapt2/openjdk-17 installed)"
+
 if command -v aapt2 >/dev/null 2>&1; then
   echo "[aapt2] already on PATH: $(command -v aapt2)"
   "$(command -v aapt2)" version || true
